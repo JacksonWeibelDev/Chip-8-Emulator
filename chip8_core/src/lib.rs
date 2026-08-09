@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use std::unimplemented;
+use std::{fs::ReadDir, unimplemented};
 
 pub const SCREEN_WIDTH: usize = 64;
 pub const SCREEN_HEIGHT: usize = 32;
@@ -121,8 +121,31 @@ impl Emu {
         let digit4 = (op & 0x000F);
 
         match(digit1, digit2, digit3, digit4) {
+            //NOP(Do Nothing)
+            (0,0,0,0) => return,
+            //CLS(Clear Screen)
+            (0, 0, 0xE, 0) => {
+                self.screen = [false; SCREEN_WIDTH * SCREEN_HEIGHT];
+            },
+            //RET(Return from Subroutine)
+            (0, 0, 0xE, 0xE) => {
+                let ret_addr = self.pop();
+                self.pc = ret_addr;
+            },
+            //JMP NNN(Jump)
+            (1, _, _, _) => {
+                let nnn = op & 0xFFF;
+                self.pc = nnn;
+            },
+            //CALL NNN(Call subroutine)
+            (2, _, _, _) => {
+                let nnn = op & 0xFFF;
+                self.push(self.pc);
+                self.pc = nnn;
+            },
+            //TODO continue from 5.2.6 (3xNN - Skip next if VX = NN)
+
             (_, _, _, _) => unimplemented!("Unemplemented opcode: {}", op),
-            
         }
     }
 
