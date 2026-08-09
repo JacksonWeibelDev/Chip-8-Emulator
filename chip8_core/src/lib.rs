@@ -1,3 +1,7 @@
+#![allow(unused)]
+
+use std::unimplemented;
+
 pub const SCREEN_WIDTH: usize = 64;
 pub const SCREEN_HEIGHT: usize = 32;
 
@@ -88,5 +92,50 @@ impl Emu {
         self.stack[self.sp as usize]
     }
 
+    pub fn tick(&mut self) {
+        //Fetch
+        let op = self.fetch();
+        //Decode & Execute
+        //While decode and execute could(and in most cases would likely) be their own functions
+        //for chip-8 it's easier to perform the operation as we determine it.
+        self.execute(op);
+    }
 
+    fn fetch(&mut self) -> u16 {
+        //Each chip 8 opcode is exactly 2 bytes. The first byte is the "higher_byte" and the second is the "lower_byte"
+        let higher_byte = self.ram[self.pc as usize] as u16;
+        let lower_byte = self.ram[(self.pc + 1) as usize] as u16;
+        let op = (higher_byte << 8) | lower_byte;
+
+        //PC gets incremented by the two bytes we just read
+        self.pc += 2;
+        op
+    }
+
+
+    fn execute(&mut self, op: u16) {
+        //We need to split each hex code into "digits"
+        let digit1 = (op & 0xF000) >> 12;
+        let digit2 = (op & 0x0F00) >> 8;
+        let digit3 = (op & 0x00F0) >> 4;
+        let digit4 = (op & 0x000F);
+
+        match(digit1, digit2, digit3, digit4) {
+            (_, _, _, _) => unimplemented!("Unemplemented opcode: {}", op),
+            
+        }
+    }
+
+    pub fn tick_timers(&mut self) {
+        if self.dt > 0 {
+            self.dt -= 1;
+        }
+
+        if self.st > 0 {
+            if self.st == 1{
+                //BEEP
+            }
+            self.st -= 1;
+        }
+    }
 }
