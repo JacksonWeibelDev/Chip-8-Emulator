@@ -143,7 +143,48 @@ impl Emu {
                 self.push(self.pc);
                 self.pc = nnn;
             },
-            //TODO continue from 5.2.6 (3xNN - Skip next if VX = NN)
+            //Skip VX == NN)
+            (3, _, _, _) => {
+                let x = digit2 as usize;
+                let nn = (op & 0xFF) as u8;
+                if self.v_reg[x] == nn {
+                    self.pc += 2;
+                }
+            },
+            //Skip VX != NN
+            (4, _, _, _) => {
+                let x = digit2 as usize;
+                let nn = (op & 0xFF) as u8;
+                if self.v_reg[x] == nn {
+                    self.pc += 2;
+                }
+            },
+            //Skip VX == VY
+            (5, _, _, 0) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+                if self.v_reg[x] == self.v_reg[y] {
+                    self.pc += 2;
+                }
+            },
+            //VX = NN
+            (6, _, _, _) => {
+                let x = digit2 as usize;
+                let nn = (op & 0xFF) as u8;
+                self.v_reg[x] = nn;
+            },
+            //VX += NN
+            (7, _, _, _) => {
+                let x = digit2 as usize;
+                let nn = (op & 0xFF) as u8;
+                self.v_reg[x] = self.v_reg[x].wrapping_add(nn);
+            },
+            //VX = VY
+            (8, _, _, 0) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+                self.v_reg[x] = self.v_reg[y];
+            },
 
             (_, _, _, _) => unimplemented!("Unemplemented opcode: {}", op),
         }
