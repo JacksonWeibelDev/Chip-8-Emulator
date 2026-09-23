@@ -272,7 +272,84 @@ impl Emu {
                 let rng: u8 = random();
                 self.v_reg[x] = rng & nn;
             }
+            (0xD, _, _, _) => {
+                //Get the (x, y) coords for our sprite
+                let x_coord = self.v_reg[digit2 as usize] as u16;
+                let y_coord = self.v_reg[digit4 as usize] as u16;
+                //The last digit determiens how many rows high our sprite is
+                let num_rows = digit4;
 
+                //Keep track if any pizels were flipped
+                let mut flipped = false;
+                //Iterate over each row of our sprite
+                for y_line in 0..num_rows {
+                    //Determine which memory address our row's data is stored
+                    let addr = self.i_reg + y_line as u16;
+                    let pixels = self.ram[addr as usize];
+                    //Iterate over each column in our row
+                    for x_line in 0..8 {
+                        //Use a mask to fetch current pixel's bit. Only flip if a 1
+                        if(pixels & (0b1000_0000 >> x_line)) != 0 {
+                            //Sprites should wrap around screen, so apply modulo
+                            let x = (x_coord + x_line) as usize % SCREEN_WIDTH;
+                            let y = (y_coord + y_line) as usize % SCREEN_HEIGHT;
+
+                            //Get our pixel's index for out 1D screen array
+                            let idx = x + SCREEN_WIDTH * y;
+                            //Check if we're about to flip the pixel and set 
+                            flipped |= self.screen[idx];
+                            self.screen[idx] ^= true;
+                        }
+                    }
+                }
+
+                //Populate VF register
+                if flipped {
+                    self.v_reg[0xF] = 1;
+                }
+                else {
+                    self.v_reg[0xF] = 0;
+                }
+            },
+            //SKIP KEY PRESS
+            (0xE, _, 9, 0xE) => {
+                let x = digit2 as usize;
+                let vx  = self.v_reg[x];
+                let key = self.keys[vx as usize];
+                if key {
+                    self.pc += 2;
+                }
+            },
+            //SKIP KEY RELEASE
+            (0xE, _, 0xA, 1) => {
+                let x = digit2 as usize;
+                let vx = self.v_reg[x];
+                let key = self.keys[vx as usize];
+                if !key {
+                    self.pc += 2;
+                }
+            },
+            //VX = DT
+            (0xF, _, 0, 7) => {
+                let x = digit2 as usize;
+                self.v_reg[x] = self.dt;
+            },
+            //WAIT KEY
+            (0xF, _, 0, 0xA) => {
+                let x = digit2 as usize;
+                let mut pressed = false;
+                for i in 0..self.keys.len() {
+                    if self.keys[i] {
+                        self.v_reg[x] = i as u8;
+                        pressed = true;
+                        break;
+                    }
+                }
+                if !pressed {
+                    //Redo opcode
+                    self.pc -= 2;
+                }
+            }
 
             (_, _, _, _) => unimplemented!("Unemplemented opcode: {}", op),
         }
