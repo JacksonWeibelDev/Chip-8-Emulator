@@ -1,6 +1,7 @@
 #![allow(unused)]
 
 use std::{fs::ReadDir, unimplemented};
+use rand::random;
 
 pub const SCREEN_WIDTH: usize = 64;
 pub const SCREEN_HEIGHT: usize = 32;
@@ -264,7 +265,13 @@ impl Emu {
                 let nnn = op & 0xFFF;
                 self.pc = (self.v_reg[0] as u16) + nnn;
             },
-            
+            //VX = rand() & NN
+            (0xC, _, _, _) => {
+                let x = digit2 as usize;
+                let nn = (op & 0xFF) as u8;
+                let rng: u8 = random();
+                self.v_reg[x] = rng & nn;
+            }
 
 
             (_, _, _, _) => unimplemented!("Unemplemented opcode: {}", op),
