@@ -66,6 +66,26 @@ impl Emu {
         new_emu
     }
 
+    /// Loads a program into CHIP-8 memory at address 0x200.
+    pub fn load_rom(&mut self, rom: &[u8]) -> Result<(), &'static str> {
+        let start = START_ADDR as usize;
+        if rom.len() > RAM_SIZE - start {
+            return Err("ROM exceeds available program memory");
+        }
+        self.ram[start..start + rom.len()].copy_from_slice(rom);
+        Ok(())
+    }
+
+    /// Returns the display in row-major order.
+    pub fn get_display(&self) -> &[bool] {
+        &self.screen
+    }
+
+    /// Sets the state of a CHIP-8 key (0x0 through 0xF).
+    pub fn keypress(&mut self, key: usize, pressed: bool) {
+        self.keys[key] = pressed;
+    }
+
     //reset everything to zero 
     pub fn reset(&mut self) {
         self.pc = START_ADDR;
@@ -425,6 +445,29 @@ impl Emu {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rom_loading_checks_bounds_without_partial_writes() {
+        let mut emu = Emu::new();
+        let rom = vec![0xAB; RAM_SIZE - START_ADDR as usize];
+        assert!(emu.load_rom(&rom).is_ok());
+        assert_eq!(emu.ram[START_ADDR as usize], 0xAB);
+        assert_eq!(emu.ram[RAM_SIZE - 1], 0xAB);
+        assert!(emu.load_rom(&vec![0xCD; rom.len() + 1]).is_err());
+        assert_eq!(emu.ram[START_ADDR as usize], 0xAB);
+    }
+
+    #[test]
+    fn frontend_can_read_display_and_set_keys() {
+        let mut emu = Emu::new();
+        emu.screen[42] = true;
+        assert_eq!(emu.get_display().len(), SCREEN_WIDTH * SCREEN_HEIGHT);
+        assert!(emu.get_display()[42]);
+        emu.keypress(0xF, true);
+        assert!(emu.keys[0xF]);
+        emu.keypress(0xF, false);
+        assert!(!emu.keys[0xF]);
+    }
 
     #[test]
     fn skip_if_not_equal_checks_inequality() {
