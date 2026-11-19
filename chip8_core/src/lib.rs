@@ -156,7 +156,7 @@ impl Emu {
             (4, _, _, _) => {
                 let x = digit2 as usize;
                 let nn = (op & 0xFF) as u8;
-                if self.v_reg[x] == nn {
+                if self.v_reg[x] != nn {
                     self.pc += 2;
                 }
             },
@@ -193,13 +193,13 @@ impl Emu {
                 self.v_reg[x] |= self.v_reg[y];
             },
             //Bitwise and
-            (8, _, _, 1) => {
+            (8, _, _, 2) => {
                 let x = digit2 as usize;
                 let y = digit3 as usize;
                 self.v_reg[x] &= self.v_reg[y];
             },
             //Bitwise xor
-            (8, _, _, 1) => {
+            (8, _, _, 3) => {
                 let x = digit2 as usize;
                 let y = digit3 as usize;
                 self.v_reg[x] ^= self.v_reg[y];
@@ -275,7 +275,7 @@ impl Emu {
             (0xD, _, _, _) => {
                 //Get the (x, y) coords for our sprite
                 let x_coord = self.v_reg[digit2 as usize] as u16;
-                let y_coord = self.v_reg[digit4 as usize] as u16;
+                let y_coord = self.v_reg[digit3 as usize] as u16;
                 //The last digit determiens how many rows high our sprite is
                 let num_rows = digit4;
 
@@ -420,5 +420,46 @@ impl Emu {
             }
             self.st -= 1;
         }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn skip_if_not_equal_checks_inequality() {
+        let mut emu = Emu::new();
+        emu.v_reg[1] = 42;
+        emu.execute(0x4129);
+        assert_eq!(emu.pc, START_ADDR + 2);
+        emu.execute(0x412A);
+        assert_eq!(emu.pc, START_ADDR + 2);
+    }
+
+    #[test]
+    fn bitwise_instructions_select_their_operation() {
+        for (opcode, expected) in [(0x8121, 0b1110), (0x8122, 0b1000), (0x8123, 0b0110)] {
+            let mut emu = Emu::new();
+            emu.v_reg[1] = 0b1010;
+            emu.v_reg[2] = 0b1100;
+            emu.execute(opcode);
+            assert_eq!(emu.v_reg[1], expected);
+        }
+    }
+
+    #[test]
+    fn sprite_uses_y_register_and_reports_collision() {
+        let mut emu = Emu::new();
+        emu.v_reg[1] = 3;
+        emu.v_reg[2] = 5;
+        emu.v_reg[3] = 9;
+        emu.i_reg = 0x300;
+        emu.ram[0x300] = 0x80;
+        emu.execute(0xD123);
+        assert!(emu.screen[3 + SCREEN_WIDTH * 5]);
+        assert_eq!(emu.v_reg[0xF], 0);
+        emu.execute(0xD123);
+        assert!(!emu.screen[3 + SCREEN_WIDTH * 5]);
+        assert_eq!(emu.v_reg[0xF], 1);
     }
 }
